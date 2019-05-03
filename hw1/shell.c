@@ -112,7 +112,27 @@ void init_shell() {
   }
 }
 
-int main(unused int argc, unused char *argv[]) {
+int exe_program(struct tokens *tokens) {
+  int token_length = tokens_get_length(tokens);
+  if (token_length <= 0) {
+    return 0;
+  }
+
+  char **argv2exe = (char **)calloc(token_length, sizeof(char *));
+  for (int i = 0; i < token_length; ++i) {
+    argv2exe[i] = tokens_get_token(tokens, i);
+  }
+
+  for (int i = 0; i < token_length; ++i) {
+    printf("%s\n", argv2exe[i]);
+  }
+
+  int status = execv(argv2exe[0], argv2exe);
+  free(argv2exe);
+  return status;
+}
+
+int main(unused int argc, unused char *argv2exe[]) {
   init_shell();
 
   static char line[4096];
@@ -133,17 +153,19 @@ int main(unused int argc, unused char *argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       /* REPLACE this to run commands as programs. */
-      // fprintf(stdout, "This shell doesn't know how to run programs.\n");
-
       pid_t pid = fork();
       int status;
       if(pid == 0){
-        char *file2exe = tokens_get_token(tokens, 0);
-        char *argv2exe = tokens_get_token(tokens, 1);
-        execl(file2exe, argv2exe);
-        return 1;
+        status = exe_program(tokens);
+        if(status < 0) {
+          printf("%d:%s\n", status, "Program execute error");
+        }
+        exit(status);
+        // return 1;
+      } else if(pid > 0) {
+        waitpid(pid, &status, 0);
       } else {
-        waitpid(pid, status, 0);
+        printf("%s\n", "fork error");
       }
     }
 
